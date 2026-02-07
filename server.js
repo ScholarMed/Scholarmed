@@ -40,15 +40,18 @@ app.get('/api/notes', async (req, res) => {
 
 // 2. UPLOAD NOTE (Starts as Pending) 📤
 app.post('/api/notes', async (req, res) => {
-    // Verify token exists (Basic check)
+    console.log("📥 INCOMING UPLOAD REQUEST!"); // Tracker 1
+    console.log("📦 Body received:", req.body); // Tracker 2 (Shows title, price, AND fileUrl)
+
     const token = req.headers.authorization;
     if (!token) return res.status(401).json({ error: "Unauthorized" });
 
     const newNote = new Note(req.body);
     await newNote.save();
+    
+    console.log("✅ Note Saved to Database!"); // Tracker 3
     res.json({ message: "Note submitted for review!" });
 });
-
 // ==========================================
 // 👮‍♂️ ADMIN ROUTES (The Secret Control Panel)
 // ==========================================
