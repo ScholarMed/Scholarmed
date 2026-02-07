@@ -13,16 +13,28 @@ mongoose.connect('mongodb+srv://medx:kazi123@medx.h103uhn.mongodb.net/medxDB?ret
     .then(() => console.log('✅ Connected to MongoDB Atlas!'))
     .catch(err => console.error('❌ Connection Error:', err));
 
-// --- 2. SCHEMAS 📝 ---
-// User Schema (Make sure this matches your User.js or define it here if needed)
-const User = require('./models/User'); 
+// --- 2. UPDATED SCHEMAS 📝 ---
 
-// Note Schema (Updated with File URL)
+// 👤 User Schema (Now with Mobile, College, Role)
+const userSchema = new mongoose.Schema({
+    name: String,
+    email: { type: String, unique: true },
+    password: String,
+    mobile: String,        // 📱 NEW
+    college: String,       // 🏫 NEW
+    role: String,          // 🎓 Student or Professor
+    course: String,
+    year: String
+});
+const User = mongoose.model('User', userSchema);
+
+// 📄 Note Schema (Now remembers the Author)
 const noteSchema = new mongoose.Schema({
     title: String,
     category: String,
     price: Number,
-    fileUrl: String,  // 📂 Stores the PDF/Image link
+    fileUrl: String,
+    authorName: String,    // ✍️ NEW: Stores "By Dr. Smith" or "By Rahul"
     status: { type: String, default: 'pending' },
     createdAt: { type: Date, default: Date.now }
 });
@@ -31,90 +43,75 @@ const Note = mongoose.model('Note', noteSchema);
 const JWT_SECRET = 'scholar_med_secret_key_123';
 
 // ==========================================
-// 🔓 PUBLIC ROUTES (For Website)
+// 🔓 PUBLIC ROUTES
 // ==========================================
 
-// Get Approved Notes (Home Page)
 app.get('/api/notes', async (req, res) => {
+    // Return approved notes OR notes created before we added status (Legacy support)
     const notes = await Note.find({
-        $or: [
-            { status: 'approved' },
-            { status: { $exists: false } }
-        ]
+        $or: [ { status: 'approved' }, { status: { $exists: false } } ]
     });
     res.json(notes);
 });
 
-// Upload New Note
 app.post('/api/notes', async (req, res) => {
-    console.log("📥 New Upload:", req.body);
     const token = req.headers.authorization;
     if (!token) return res.status(401).json({ error: "Unauthorized" });
 
+    // We accept 'authorName' from the frontend now
     const newNote = new Note(req.body);
     await newNote.save();
-    
-    console.log("✅ Note Saved!");
     res.json({ message: "Note submitted for review!" });
 });
 
 // ==========================================
-// 👮‍♂️ ADMIN ROUTES (The Control Panel)
+// 👮‍♂️ ADMIN ROUTES
 // ==========================================
-
-// Get Pending Notes
 app.get('/api/admin/pending', async (req, res) => {
     const notes = await Note.find({
-        $or: [
-            { status: 'pending' },
-            { status: { $exists: false } }
-        ]
+        $or: [ { status: 'pending' }, { status: { $exists: false } } ]
     });
     res.json(notes);
 });
 
-// Approve Note
+app.get('/api/admin/users', async (req, res) => {
+    const users = await User.find();
+    res.json(users);
+});
+
 app.put('/api/admin/approve/:id', async (req, res) => {
     await Note.findByIdAndUpdate(req.params.id, { status: 'approved' });
     res.json({ message: "Approved" });
 });
 
-// Reject/Delete Note
 app.delete('/api/admin/reject/:id', async (req, res) => {
     await Note.findByIdAndDelete(req.params.id);
     res.json({ message: "Deleted" });
 });
 
-// --- 👇 NEW: USER MANAGEMENT ROUTES 👇 ---
-
-// Get All Users (For Admin Dashboard)
-app.get('/api/admin/users', async (req, res) => {
-    try {
-        const users = await User.find(); // Fetch all students
-        res.json(users);
-    } catch (err) { res.status(500).json({ error: "Failed to fetch users" }); }
-});
-
-// Delete/Ban User
 app.delete('/api/admin/users/:id', async (req, res) => {
-    try {
-        await User.findByIdAndDelete(req.params.id);
-        res.json({ message: "User Banned/Deleted!" });
-    } catch (err) { res.status(500).json({ error: "Delete failed" }); }
+    await User.findByIdAndDelete(req.params.id);
+    res.json({ message: "User Deleted" });
 });
 
 // ==========================================
-// 🔐 AUTH ROUTES (Login/Register)
+// 🔐 AUTH ROUTES (Updated Register)
 // ==========================================
 
 app.post('/api/register', async (req, res) => {
-    const { name, email, password, course, year } = req.body;
+    // 📥 Receive all the new details
+    const { name, email, password, mobile, college, role, course, year } = req.body;
     try {
         const existingUser = await User.findOne({ email });
         if (existingUser) return res.status(400).json({ error: "User exists" });
         
         const hashedPassword = await bcrypt.hash(password, 10);
-        const newUser = new User({ name, email, password: hashedPassword, course, year });
+        
+        // 💾 Save everything to DB
+        const newUser = new User({ 
+            name, email, password: hashedPassword, 
+            mobile, college, role, course, year 
+        });
         await newUser.save();
         res.json({ message: "Registered!" });
     } catch (err) { res.status(500).json({ error: "Failed" }); }
@@ -128,12 +125,10 @@ app.post('/api/login', async (req, res) => {
             return res.status(400).json({ error: "Invalid Credentials" });
         }
         const token = jwt.sign({ id: user._id }, JWT_SECRET);
-        res.json({ token, user: { name: user.name, email: user.email } });
+        // Send back the Name so we can use it as 'Author Name' later
+        res.json({ token, user: { name: user.name, email: user.email, role: user.role } });
     } catch (err) { res.status(500).json({ error: "Login Failed" }); }
 });
 
-// ==========================================
-// 🚀 SERVER START (Here is app.listen!)
-// ==========================================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 ScholarMed Server running on Port ${PORT}`));
