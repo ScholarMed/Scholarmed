@@ -14,13 +14,14 @@ mongoose.connect('mongodb+srv://medx:kazi123@medx.h103uhn.mongodb.net/medxDB?ret
     .catch(err => console.error('❌ Connection Error:', err));
 
 // --- SCHEMAS ---
-const User = require('./models/User'); // Keep your User model
+const User = require('./models/User'); 
 
 const noteSchema = new mongoose.Schema({
     title: String,
     category: String,
     price: Number,
-    status: { type: String, default: 'pending' }, // 🚦 NEW: Default is Pending!
+    fileUrl: String,  // 👈 THIS IS THE KEY! (The Guest List Entry)
+    status: { type: String, default: 'pending' },
     createdAt: { type: Date, default: Date.now }
 });
 const Note = mongoose.model('Note', noteSchema);
@@ -31,34 +32,44 @@ const JWT_SECRET = 'scholar_med_secret_key_123';
 // 🔓 PUBLIC ROUTES
 // ==========================================
 
-// 1. GET APPROVED NOTES (For Homepage) 🌍
+// 1. GET APPROVED NOTES (Including Old Ones) 🌍
 app.get('/api/notes', async (req, res) => {
-    // Only show notes that are APPROVED
-    const notes = await Note.find({ status: 'approved' });
+    const notes = await Note.find({
+        $or: [
+            { status: 'approved' },
+            { status: { $exists: false } }
+        ]
+    });
     res.json(notes);
 });
 
 // 2. UPLOAD NOTE (Starts as Pending) 📤
 app.post('/api/notes', async (req, res) => {
-    console.log("📥 INCOMING UPLOAD REQUEST!"); // Tracker 1
-    console.log("📦 Body received:", req.body); // Tracker 2 (Shows title, price, AND fileUrl)
+    console.log("📥 INCOMING UPLOAD:", req.body); // Keep tracking just in case!
 
     const token = req.headers.authorization;
     if (!token) return res.status(401).json({ error: "Unauthorized" });
 
+    // Mongoose will now see 'fileUrl' in the schema and SAVE it!
     const newNote = new Note(req.body);
     await newNote.save();
     
-    console.log("✅ Note Saved to Database!"); // Tracker 3
+    console.log("✅ Note Saved with File!");
     res.json({ message: "Note submitted for review!" });
 });
+
 // ==========================================
-// 👮‍♂️ ADMIN ROUTES (The Secret Control Panel)
+// 👮‍♂️ ADMIN ROUTES
 // ==========================================
 
-// 3. GET PENDING NOTES (For Admin Dashboard) 🕵️‍♂️
+// 3. GET PENDING NOTES (Including Ghosts) 🕵️‍♂️
 app.get('/api/admin/pending', async (req, res) => {
-    const notes = await Note.find({ status: 'pending' });
+    const notes = await Note.find({
+        $or: [
+            { status: 'pending' },
+            { status: { $exists: false } }
+        ]
+    });
     res.json(notes);
 });
 
@@ -83,7 +94,7 @@ app.delete('/api/admin/reject/:id', async (req, res) => {
 });
 
 // ==========================================
-// 🔐 AUTH ROUTES (Register & Login)
+// 🔐 AUTH ROUTES
 // ==========================================
 app.post('/api/register', async (req, res) => {
     const { name, email, password, course, year } = req.body;
