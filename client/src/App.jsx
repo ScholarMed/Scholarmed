@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 
-// This automatically picks the right URL (Local or Live)
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+// ==========================================
+// 🔗 CONNECTING TO YOUR LIVE BACKEND (BRAIN)
+// ==========================================
+const API_URL = 'https://scholarmed-api.onrender.com';
 
 function App() {
   const [notes, setNotes] = useState([]);
@@ -9,15 +11,16 @@ function App() {
   const [category, setCategory] = useState('MBBS');
   const [price, setPrice] = useState('');
 
-  // Fetch notes on load
+  // --- FETCH NOTES (Load from Internet) ---
   useEffect(() => {
+    // This connects to your Render server to get notes
     fetch(`${API_URL}/api/notes`)
       .then(res => res.json())
       .then(data => setNotes(data))
       .catch(err => console.error("Error fetching notes:", err));
   }, []);
 
-  // Function to handle the "Upload" button click
+  // --- UPLOAD FUNCTION (Send to Internet) ---
   const handleUpload = () => {
     const newNote = { title, category, price };
 
@@ -31,7 +34,7 @@ function App() {
       setNotes(updatedList);
       setTitle('');
       setPrice('');
-      alert('Note Uploaded Successfully!');
+      alert('Note Uploaded Successfully to Cloud! ☁️');
     })
     .catch(err => console.error("Error uploading note:", err));
   };
@@ -41,7 +44,6 @@ function App() {
       
       {/* NAVBAR */}
       <nav style={{ backgroundColor: '#0d1b2a', color: 'white', padding: '15px 20px', display: 'flex', justifyContent: 'space-between' }}>
-       {/* OLD: <h1 style={{ margin: 0 }}>MedX 🧬</h1> */}
         <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 'bold' }}>ScholarMed 🎓</h1>
       </nav>
 
@@ -84,7 +86,7 @@ function App() {
         {/* DISPLAY NOTES */}
         <h3 style={{ textAlign: 'center' }}>Available Notes</h3>
         <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', justifyContent: 'center' }}>
-          {notes.length === 0 ? <p>Loading notes...</p> : notes.map((note) => (
+          {notes.length === 0 ? <p>Loading notes from Cloud...</p> : notes.map((note) => (
             <div key={note._id} style={{ width: '200px', backgroundColor: 'white', padding: '15px', borderRadius: '8px', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}>
               <small style={{ color: '#0077b6', fontWeight: 'bold' }}>{note.category}</small>
               <h4 style={{ margin: '10px 0' }}>{note.title}</h4>
