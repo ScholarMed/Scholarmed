@@ -44,6 +44,10 @@ app.post('/api/notes', async (req, res) => {
 });
 
 // --- START SERVER ---
-app.listen(5000, () => {
-    console.log('🚀 ScholarMed Server running on Port 5000');
+// "process.env.PORT" lets Render choose the port.
+// "|| 5000" is a backup for your computer.
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+    console.log(`🚀 ScholarMed Server running on Port ${PORT}`);
 });
